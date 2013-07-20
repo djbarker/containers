@@ -1,4 +1,4 @@
-dual-list
+Dual-list
 =========
 
-A list container where the objects are stored in two lists simultaneously.
+A list like container where objects are stored in two lists simultaneously. Also has a pool-like allocation scheme for efficiency.
