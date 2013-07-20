@@ -9,6 +9,13 @@ struct MultiList {
     // sanity check 
     static_assert(N>0,"Multilist cannot have \'arity\' paramter <1.");
 
+    // forwarding constructor
+    template<typename... Ts>
+    MultiList(Ts... vs):data(vs...){}
+
+    // non-copyable
+    MultiList<T,N>(const MultiList<T,N>&) = delete;
+
     T data;
 
     // struct for storing connections
@@ -32,12 +39,18 @@ struct MultiList {
     // connections
     std::array<Connection,N> conns;
 
-    // forwarding constructor
-    template<typename... Ts>
-    MultiList(Ts... vs):data(vs...){}
+    // convenience functions
+    template<size_t L>
+    MultiList<T,N>* prev()
+    {
+    	return conns[L].prev;
+    }
 
-    // non-copyable
-    MultiList<T,N>(const MultiList<T,N>&) = delete;
+    template<size_t L>
+	MultiList<T,N>* next()
+	{
+		return conns[L].next;
+	}
 
     // cast to data type
     operator T& ()
@@ -47,21 +60,23 @@ struct MultiList {
 
     // push onto specified list
     template<size_t L>
-    void insert_before(MultiList<T,N>& el) throw()
+    MultiList<T,N>* insert_before(MultiList<T,N>* el) throw()
     {
-        if(conns[L].prev!=nullptr) conns[L].prev->conns[L].next = &el;
-        el.conns[L].prev = conns[L].prev;
-        el.conns[L].next = this;
-        conns[L].prev = &el;
+        if(conns[L].prev!=nullptr) conns[L].prev->conns[L].next = el;
+        el->conns[L].prev = conns[L].prev;
+        el->conns[L].next = this;
+        conns[L].prev = el;
+        return el;
     }
 
     template<size_t L>
-    void insert_after(MultiList<T,N>* el) throw()
+    MultiList<T,N>* insert_after(MultiList<T,N>* el) throw()
     {
         el->conns[L].next = conns[L].next;
         el->conns[L].prev = this;
         if(conns[L].next!=nullptr) conns[L].next->conns[L].prev = el;
         conns[L].next = el;
+        return el;
     }
 
     template<size_t L>
@@ -124,7 +139,7 @@ struct MultiList {
             else
             {
                 // "push_front" on list zero
-                pool->insert_before<0>(*element);
+                pool->insert_before<0>(element);
                 for(int i=1;i<N;++i) {
                     pool->conns[i].next = nullptr;
                     pool->conns[i].prev = nullptr;
