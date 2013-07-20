@@ -4,24 +4,25 @@
 #include <memory>
 
 template<typename T, size_t N>
-struct MultiList {
+struct MultiListElement
+{
 
     // sanity check 
-    static_assert(N>0,"Multilist cannot have \'arity\' paramter <1.");
+    static_assert(N>0,"MultiListElement cannot have \'arity\' paramter <1.");
 
     // forwarding constructor
     template<typename... Ts>
-    MultiList(Ts... vs):data(vs...){}
+    MultiListElement(Ts... vs):data(vs...){}
 
     // non-copyable
-    MultiList<T,N>(const MultiList<T,N>&) = delete;
+    MultiListElement<T,N>(const MultiListElement<T,N>&) = delete;
 
     T data;
 
     // struct for storing connections
     struct Connection {
-        MultiList<T,N>* prev;
-        MultiList<T,N>* next;
+        MultiListElement<T,N>* prev;
+        MultiListElement<T,N>* next;
 
         Connection()
         :prev(nullptr)
@@ -29,7 +30,7 @@ struct MultiList {
         {
         }
 
-        Connection(MultiList<T,N>* p, MultiList<T,N>* n)
+        Connection(MultiListElement<T,N>* p, MultiListElement<T,N>* n)
         :prev(p)
         ,next(n)
         {
@@ -41,13 +42,13 @@ struct MultiList {
 
     // convenience functions
     template<size_t L>
-    MultiList<T,N>* prev()
+    MultiListElement<T,N>* prev()
     {
     	return conns[L].prev;
     }
 
     template<size_t L>
-	MultiList<T,N>* next()
+	MultiListElement<T,N>* next()
 	{
 		return conns[L].next;
 	}
@@ -60,7 +61,7 @@ struct MultiList {
 
     // push onto specified list
     template<size_t L>
-    MultiList<T,N>* insert_before(MultiList<T,N>* el) throw()
+    MultiListElement<T,N>* insert_before(MultiListElement<T,N>* el) throw()
     {
         if(conns[L].prev!=nullptr) conns[L].prev->conns[L].next = el;
         el->conns[L].prev = conns[L].prev;
@@ -70,7 +71,7 @@ struct MultiList {
     }
 
     template<size_t L>
-    MultiList<T,N>* insert_after(MultiList<T,N>* el) throw()
+    MultiListElement<T,N>* insert_after(MultiListElement<T,N>* el) throw()
     {
         el->conns[L].next = conns[L].next;
         el->conns[L].prev = this;
@@ -82,13 +83,13 @@ struct MultiList {
     template<size_t L>
     void insert_before(T&& t)
     {
-        insert_before<L>(new MultiList<T,N>(t));
+        insert_before<L>(new MultiListElement<T,N>(t));
     }
 
     template<size_t L>
     void insert_after(T&& t)
     {
-        insert_after<L>(new MultiList<T,N>(t));
+        insert_after<L>(new MultiListElement<T,N>(t));
     }
 
     /*
@@ -99,7 +100,7 @@ struct MultiList {
         if(pool==nullptr)
         {
             // allocate contiguous storage            
-            pool = new MultiList<T,N>[pool_size];
+            pool = new MultiListElement<T,N>[pool_size];
 
             // link the pool elements together using connection zero
             pool[0].conns[0].prev = nullptr;
@@ -126,7 +127,7 @@ struct MultiList {
 
     static void operator delete(void* p_in)
     {
-            MultiList<T,N>* element = (MultiList<T,N>*)p_in;
+            MultiListElement<T,N>* element = (MultiListElement<T,N>*)p_in;
             if(pool==nullptr)
             {
                 pool = element;
@@ -150,14 +151,87 @@ struct MultiList {
 private:
 
     static constexpr size_t pool_size = 10;
-    static MultiList<T,N>* pool;
+    static MultiListElement<T,N>* pool;
     static size_t news;
     static size_t dels;
 };
 
-template<typename T, size_t N> MultiList<T,N>* MultiList<T,N>::pool = nullptr;
-template<typename T, size_t N> size_t          MultiList<T,N>::news = 0;
-template<typename T, size_t N> size_t          MultiList<T,N>::dels = 0;
+template<typename T, size_t N> MultiListElement<T,N>* MultiListElement<T,N>::pool = nullptr;
+template<typename T, size_t N> size_t MultiListElement<T,N>::news = 0;
+template<typename T, size_t N> size_t MultiListElement<T,N>::dels = 0;
+
+template<typename T, size_t A, size_t N>
+class MultiList
+{
+
+	// sanity checks
+	static_assert(A>N,"Index out-of-bounds, N must be < A.");
+	static_assert(A>0,"MultiList cannot have \'arity\' paramter <1.");
+
+public:
+
+	using element = MultiListElement<T,A>;
+
+	class iterator
+	{
+		MultiListElement<T,A>* data;
+
+	public:
+		iterator():data(nullptr){}
+		iterator(MultiListElement<T,A>* p):data(p){}
+		bool operator!=(const iterator& i){ return data!=i.data; }
+		T& operator*(){ return data->data; }
+
+		iterator& operator++()
+		{
+			data=data->template next<N>();
+			return *this;
+		}
+
+		iterator& operator--()
+		{
+			data=data->template prev<N>();
+			return *this;
+		}
+	}; // iterator
+
+	MultiList()
+	:start(nullptr)
+	,rstart(nullptr)
+	,count(0)
+	{
+	}
+
+	void push_back(MultiListElement<T,A>* el)
+	{
+		if(count>0)
+		{
+			rstart = rstart->template insert_after<N>(el);
+		}
+		else
+		{
+			start = rstart = el;
+		}
+		++count;
+	}
+
+	iterator begin()
+	{
+		return iterator(start);
+	}
+
+	iterator end()
+	{
+		return iterator();
+	}
+
+private:
+
+	MultiListElement<T,A>* start;
+	MultiListElement<T,A>* rstart;
+	size_t count;
+};
 
 // convenience template alias
-template<typename T> using DualList = MultiList<T,2>;
+template<typename T, size_t N> using DualList = MultiList<T,2,N>;
+template<typename T> using DualElement = MultiListElement<T,2>;
