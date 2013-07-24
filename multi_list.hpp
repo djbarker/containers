@@ -169,7 +169,7 @@ struct MultiListElement
 
 private:
 
-    static constexpr size_t pool_size = 10;
+    static constexpr size_t pool_size = 100;
     static MultiListElement<T,N>* pool;
     static size_t news;
     static size_t dels;

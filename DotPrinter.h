@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <vector>
+#include <memory>
+#include <string>
 #include "multi_list.hpp"
 
 /*
@@ -32,16 +34,9 @@ public:
 				MultiListElement<T,A>* start = pList;
 				while(start!=nullptr)
 				{
-					out << '\"' << start << "\" [shape=box]" << std::endl; // declare node
-					out << "edge [color=";
-					switch(i)
-					{
-					case 1:
-						out << "red]" << endl;
-						break;
-					default:
-						out << "black]" << endl;
-					}
+					out << '\"' << start << "\" [shape=box,label="
+						<< (start-lists[0]) << "]" << std::endl; // declare node
+					out << "edge [color=" << colours[i] << "]" << endl; // declare edge
 					out << '\"' << start << "\" -> \"" << start->next(i) << '\"' << std::endl;
 					start = start->next(i);
 				}
@@ -52,7 +47,11 @@ public:
 	}
 
 private:
+	static const std::string colours[4];
 	std::vector<MultiListElement<T,A>*> lists;
 };
+
+template<typename T, size_t A>
+const std::string DotPrinter<T,A>::colours[4] = {"black","red","blue","green"};
 
 #endif /* DOTPRINTER_H_ */
