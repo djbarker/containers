@@ -1,3 +1,6 @@
+#ifndef MULTI_LIST_HPP_
+#define MULTI_LIST_HPP_
+
 #include <iostream>
 #include <stdexcept>
 #include <array>
@@ -42,21 +45,37 @@ struct MultiListElement
 
     // convenience functions
     template<size_t L>
-    MultiListElement<T,N>* prev()
+    MultiListElement<T,N>* prev() const
     {
     	return conns[L].prev;
     }
 
     template<size_t L>
-	MultiListElement<T,N>* next()
+	MultiListElement<T,N>* next() const
 	{
 		return conns[L].next;
 	}
+
+    // run-time versions
+   MultiListElement<T,N>* prev(size_t L) const
+	{
+	   return conns[L].prev;
+	}
+
+   	MultiListElement<T,N>* next(size_t L) const
+   	{
+   		return conns[L].next;
+   	}
 
     // cast to data type
     operator T& ()
     {
         return data;
+    }
+
+    T* operator-> ()
+    {
+    	return &data;
     }
 
     // push onto specified list
@@ -182,6 +201,11 @@ public:
 		bool operator!=(const iterator& i){ return data!=i.data; }
 		T& operator*(){ return data->data; }
 
+		MultiListElement<T,A>* get()
+		{
+			return data;
+		}
+
 		iterator& operator++()
 		{
 			data=data->template next<N>();
@@ -235,3 +259,5 @@ private:
 // convenience template alias
 template<typename T, size_t N> using DualList = MultiList<T,2,N>;
 template<typename T> using DualElement = MultiListElement<T,2>;
+
+#endif /* MULTI_LIST_HPP_ */
