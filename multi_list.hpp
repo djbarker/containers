@@ -57,7 +57,7 @@ struct MultiListElement
 	}
 
     // run-time versions
-   MultiListElement<T,N>* prev(size_t L) const
+	MultiListElement<T,N>* prev(size_t L) const
 	{
 	   return conns[L].prev;
 	}
@@ -110,101 +110,30 @@ struct MultiListElement
     {
         insert_after<L>(new MultiListElement<T,N>(t));
     }
-
-    /*
-     * Custom memory allocation routines.
-     */
-    static void* operator new(size_t size) throw(std::bad_alloc)
-    {        
-        if(pool==nullptr)
-        {
-            // allocate contiguous storage            
-            pool = new MultiListElement<T,N>[pool_size];
-
-            // link the pool elements together using connection zero
-            pool[0].conns[0].prev = nullptr;
-            pool[0].conns[0].next = pool+1;
-            for(size_t i=1; i<pool_size-1; ++i) {
-                pool[i].conns[0].prev = pool+i-1;
-                pool[i].conns[0].next = pool+i+1;
-            }
-            pool[pool_size-1].conns[0].prev = pool+pool_size-1;
-            pool[pool_size-1].conns[0].next = nullptr;
-            auto out = pool;
-            pool = pool+1;
-            return (void*)out;
-        }
-        else
-        {
-            // "pop_front"
-            if(pool->conns[0].next!=nullptr) pool->conns[0].next->conns[0].prev = nullptr;
-            auto out = pool;
-            pool = pool->conns[0].next;
-            return (void*)out;
-        }
-    }
-
-    static void operator delete(void* p_in)
-    {
-            MultiListElement<T,N>* element = (MultiListElement<T,N>*)p_in;
-            if(pool==nullptr)
-            {
-                pool = element;
-                // remove connections to other lists
-                for(int i=0;i<N;++i) {
-                    pool->conns[i].next = nullptr;
-                    pool->conns[i].prev = nullptr;
-                }
-            }
-            else
-            {
-                // "push_front" on list zero
-                pool->insert_before<0>(element);
-                for(int i=1;i<N;++i) {
-                    pool->conns[i].next = nullptr;
-                    pool->conns[i].prev = nullptr;
-                }
-            }
-    }
-
-private:
-
-    static constexpr size_t pool_size = 100;
-    static MultiListElement<T,N>* pool;
-    static size_t news;
-    static size_t dels;
 };
 
-template<typename T, size_t N> MultiListElement<T,N>* MultiListElement<T,N>::pool = nullptr;
-template<typename T, size_t N> size_t MultiListElement<T,N>::news = 0;
-template<typename T, size_t N> size_t MultiListElement<T,N>::dels = 0;
-
-template<typename T, size_t A, size_t N>
+template<typename T, size_t Arity>
 class MultiList
 {
-
-	// sanity checks
-	static_assert(A>N,"Index out-of-bounds, N must be < A.");
-	static_assert(A>0,"MultiList cannot have \'arity\' paramter <1.");
+	// sanity check
+	static_assert(Arity>0,"MultiList cannot have \'arity\' paramter <1.");
 
 public:
 
-	using element = MultiListElement<T,A>;
+	typedef MultiListElement<T,Arity> node_type;
 
+	template<size_t N>
 	class iterator
 	{
-		MultiListElement<T,A>* data;
+		static_assert(N>=0 && N<Arity,"Iterator MultiList index out-of-bounds.");
+
+		MultiListElement<T,Arity>* data;
 
 	public:
 		iterator():data(nullptr){}
-		iterator(MultiListElement<T,A>* p):data(p){}
+		iterator(MultiListElement<T,Arity>* p):data(p){}
 		bool operator!=(const iterator& i){ return data!=i.data; }
 		T& operator*(){ return data->data; }
-
-		MultiListElement<T,A>* get()
-		{
-			return data;
-		}
 
 		iterator& operator++()
 		{
@@ -217,47 +146,114 @@ public:
 			data=data->template prev<N>();
 			return *this;
 		}
+
+		MultiListElement<T,Arity>* get()
+		{
+			return data;
+		}
+
+		template<size_t NNew>
+		iterator<NNew> project() // convert to an iterator over a different list
+		{
+			static_assert(NNew>0,"Index < 0 at \"template<size_t> iterator<size_t>::project()\".");
+			static_assert(NNew<Arity,"Index out of bounds at \"template<size_t> iterator<size_t>::project()\".");
+			return iterator<NNew>(data);
+		}
 	}; // iterator
 
 	MultiList()
-	:start(nullptr)
-	,rstart(nullptr)
-	,count(0)
 	{
+		for(size_t i=0; i<Arity; ++i)
+			start[i] = rstart[i] = nullptr;
 	}
 
-	void push_back(MultiListElement<T,A>* el)
+	template<size_t N>
+	void push_back(const T& t)
 	{
-		if(count>0)
+		if(count[N]>0)
 		{
-			rstart = rstart->template insert_after<N>(el);
+			start[N] = rstart[N]->template insert_after<N>(new node_type(t));
 		}
 		else
 		{
-			start = rstart = el;
+			start[N] = rstart[N] = new node_type(t);
 		}
-		++count;
+		++count[N];
 	}
 
-	iterator begin()
+	template<size_t NNew, size_t NExist>
+	void push_back(const iterator<NExist>& itr)
 	{
-		return iterator(start);
+		static_assert(NExist!=NNew,"Cannot push_back existing element onto containing list.");
+		if(count[NNew]>0)
+		{
+			rstart[NNew] = start[NNew]->template insert_after<NNew>(*itr);
+		}
+		else
+		{
+			start[NNew] = rstart[NNew] = *itr;
+		}
+		++count[NNew];
 	}
 
-	iterator end()
+	template<size_t N>
+	T back()
 	{
-		return iterator();
+		return *rstart[N];
 	}
+
+	template<size_t N>
+	iterator<N> begin()
+	{
+		return iterator<N>(start[N]);
+	}
+
+	template<size_t N>
+	iterator<N> end()
+	{
+		return iterator<N>();
+	}
+
+	template<size_t N>
+	iterator<N> last()
+	{
+		return iterator<N>(rstart[N]);
+	}
+
+	template<size_t N> friend class List;
+
+	template<size_t N>
+	class List {
+	public:
+		List(MultiList<T,Arity>& ml)
+		:mlist(ml)
+		{
+		}
+
+		iterator<N> begin()
+		{
+			return mlist.template begin<N>();
+		}
+
+		iterator<N> end()
+		{
+			return mlist.template end<N>();
+		}
+
+		iterator<N> last()
+		{
+			return mlist.template last<N>();
+		}
+
+	private:
+		MultiList<T,Arity>& mlist;
+	};
 
 private:
 
-	MultiListElement<T,A>* start;
-	MultiListElement<T,A>* rstart;
-	size_t count;
+	std::array<node_type*,Arity> start;
+	std::array<node_type*,Arity> rstart;
+	std::array<size_t,Arity> count;
 };
-
-// convenience template alias
-template<typename T, size_t N> using DualList = MultiList<T,2,N>;
-template<typename T> using DualElement = MultiListElement<T,2>;
 
 #endif /* MULTI_LIST_HPP_ */

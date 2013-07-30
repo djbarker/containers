@@ -14,19 +14,13 @@ int main(void)
 	engine.seed(42);
 	auto generator = std::bind(distribution, engine);
 
-    MultiList<int,3,0> main;
-    MultiList<int,3,1> sub;
-    MultiList<int,3,2> sub2;
+    MultiList<int,3> main;
     
     for(int i=0;i<20;++i)
     {
-    	auto tmp = new MultiList<int,3,0>::element(i);
-
-
-    	main.push_back(tmp);
-    	//if(i%2==0) sub.push_back(tmp);
-    	if(generator()<2 || i==0) sub.push_back(tmp);
-    	if(generator()<1 || i==0) sub2.push_back(tmp);
+    	main.push_back<0>(i);
+    	if(generator()<2 || i==0) main.push_back<1>(i);
+    	if(generator()<1 || i==0) main.push_back<2>(i);
     }
 
     cout << "Printing..." << endl;
@@ -39,8 +33,9 @@ int main(void)
     }
 
     DotPrinter<int,3> printer;
-    printer.addMultiList(main.begin().get());
+    printer.addMultiList(&main);
     printer.print(fout);
+
     fout.close();
 
     return 0;
