@@ -1,5 +1,10 @@
-Dual-list
-=========
+Containers
+==========
 
-A list like container where objects are stored in multiple lists simultaneously. The list pointers are stored in the same objects as the data to improve memory locality. Note, there is no benefit to using this to store pointers since one would lose any possible benefits of data locality.
+Some custom containers I've written for various projects.
+
+* A multi list type structure where elements can be in more than one list at a time (akin to [Boost.Intrusive](http://www.boost.org/doc/libs/1_55_0/doc/html/intrusive.html))
+* A deque with fast erasing, appending and splitting (does not maintain ordering).
+
+Disclaimer: these are in no way standards complient and were designed/written for specific tasks.
 
