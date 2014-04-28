@@ -1,13 +1,14 @@
 #include <vector>
 #include <cstdlib>
 #include <cassert>
+#include <type_traits>
 
 namespace fast_erase
 {
 	template<class T, size_t BlockSize>
 	class deque
 	{
-		typedef ::csph::deque<T, BlockSize> _deq_t;
+		typedef ::fast_erase::deque<T, BlockSize> _deq_t;
 
 	public:
 
@@ -143,9 +144,14 @@ namespace fast_erase
 		}
 
 		void erase(size_t idx) {
-			assert(idx >= 0 && idx<num_stored && "csph::deque<T,N>::erase(size_t) Invalid idx!");
+			assert(idx >= 0 && idx<num_stored && "fast_erase::deque<T,N>::erase(size_t) Invalid idx!");
 			(*this)[idx].~T();
-			memcpy(&(*this)[idx], &(*this)[num_stored - 1], sizeof(T));
+			if (std::is_move_constructible<T>::value) {
+				new (&(*this)[idx]) T(std::move((*this)[num_stored - 1])); // move construct
+				back().~T();
+			} else {
+				memcpy(&(*this)[idx], &(*this)[num_stored - 1], sizeof(T)); // copy
+			}
 			--num_stored;
 			if (lb_count == 0) {
 				_free_back(); 
@@ -189,7 +195,7 @@ namespace fast_erase
 		}
 
 		void erase(T* ptr) {
-			assert(contains(ptr) && "csph::deque<T,N>::erase(T*) Invalid pointer!");
+			assert(contains(ptr) && "fast_erase::deque<T,N>::erase(T*) Invalid pointer!");
 			erase(_ptr2idx(ptr));
 		}
 
@@ -229,7 +235,7 @@ namespace fast_erase
 		}
 
 		_deq_t split(size_t idx) {
-			assert(0 <= idx && idx < num_stored && "csph::deque<T,B>::split(size_t) Invalid index!");
+			assert(0 <= idx && idx < num_stored && "fast_erase::deque<T,B>::split(size_t) Invalid index!");
 
 			_deq_t out; // empty deque - nothing allocated
 			size_t block = (size_t)idx / BlockSize;
@@ -302,7 +308,7 @@ namespace fast_erase
 			for (size_t i = 0; i < blocks.size(); ++i)
 			if (blocks[i] <= ptr && ptr < (blocks[i] + BlockSize))
 				return (i*BlockSize) + (size_t)(ptr - blocks[i]);
-			throw std::runtime_error("Invalid pointer in csph::deque<T,B>::_ptr2idx(T*)!");
+			throw std::runtime_error("Invalid pointer in fast_erase::deque<T,B>::_ptr2idx(T*)!");
 		}
 
 		void _free_back() {
